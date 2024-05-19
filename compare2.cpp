@@ -7,8 +7,10 @@
 
 #include <riscv-vector.h>
 
+#include <omp.h>
+
 #define NTIMES 10000
-#define V_SIZE 100009
+#define V_SIZE 1000009
 
 void copy(float* dst, float* src, int size) {
     for (int i = 0; i < size; i++)
@@ -25,6 +27,32 @@ void copy_v(float* dst, float* src, int size) {
 		dst += vl;
 		src += vl;
 		size -= vl;
+	}
+}
+
+void copy_v_omp(float* dst, float* src, int size) {
+	#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int thread_num = omp_get_num_threads();
+		int part_size = size / thread_num;
+		int offset = part_size * id;
+		if (id == thread_num - 1)
+			part_size = size - offset;
+		copy_v(dst + offset, src + offset, part_size);
+	}
+}
+
+void copy_omp(float* dst, float* src, int size) {
+	#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int thread_num = omp_get_num_threads();
+		int part_size = size / thread_num;
+		int offset = part_size * id;
+		if (id == thread_num - 1)
+			part_size = size - offset;
+		copy(dst + offset, src + offset, part_size);
 	}
 }
 
@@ -46,6 +74,32 @@ void fma_v(float* res, float* a, float* b, float scalar, int size) {
 		b += vl;
 		res += vl;
 		size -= vl;
+	}
+}
+
+void fma_v_omp(float* res, float* a, float* b, float scalar, int size) {
+	#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int thread_num = omp_get_num_threads();
+		int part_size = size / thread_num;
+		int offset = part_size * id;
+		if (id == thread_num - 1)
+			part_size = size - offset;
+		fma_v(res + offset, a + offset, b + offset, scalar, part_size);
+	}
+}
+
+void fma_omp(float* res, float* a, float* b, float scalar, int size) {
+	#pragma omp parallel
+	{
+		int id = omp_get_thread_num();
+		int thread_num = omp_get_num_threads();
+		int part_size = size / thread_num;
+		int offset = part_size * id;
+		if (id == thread_num - 1)
+			part_size = size - offset;
+		fma(res + offset, a + offset, b + offset, scalar, part_size);
 	}
 }
 
@@ -84,6 +138,36 @@ float norm2_v(float* mas, size_t size) {
 	return res;
 }
 
+float norm2_v_omp(float* mas, size_t size) {
+	float res = 0;
+	#pragma omp parallel reduction(+: res)
+	{
+		int id = omp_get_thread_num();
+		int thread_num = omp_get_num_threads();
+		int part_size = size / thread_num;
+		int offset = part_size * id;
+		if (id == thread_num - 1)
+			part_size = size - offset;
+		res = res + norm2_v(mas + offset, part_size);
+	}
+	return res;
+}
+
+float norm2_omp(float* mas, size_t size) {
+	float res = 0;
+	#pragma omp parallel reduction(+: res)
+	{
+		int id = omp_get_thread_num();
+		int thread_num = omp_get_num_threads();
+		int part_size = size / thread_num;
+		int offset = part_size * id;
+		if (id == thread_num - 1)
+			part_size = size - offset;
+		res = res + norm2(mas + offset, part_size);
+	}
+	return res;
+}
+
 void test_copy(float* a, float* b, float* b_v, int size) {
 	auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NTIMES; i++)
@@ -92,6 +176,28 @@ void test_copy(float* a, float* b, float* b_v, int size) {
     std::chrono::duration<double> elapsed_seconds = end - start;
     double time_copy = elapsed_seconds.count();
 	
+	float mx_diff = 0.0f;
+	
+	start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < NTIMES; i++)
+        copy_v_omp(b_v, a, size);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end - start;
+    double time_copy_v_omp = elapsed_seconds.count();
+	
+	for (int i = 0; i < size; i++)
+		mx_diff = std::max(mx_diff, std::abs(b[i] - b_v[i]));
+	
+	start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < NTIMES; i++)
+        copy_omp(b_v, a, size);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end - start;
+    double time_copy_omp = elapsed_seconds.count();
+	
+	for (int i = 0; i < size; i++)
+		mx_diff = std::max(mx_diff, std::abs(b[i] - b_v[i]));
+	
 	start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NTIMES; i++)
         copy_v(b_v, a, size);
@@ -99,12 +205,13 @@ void test_copy(float* a, float* b, float* b_v, int size) {
     elapsed_seconds = end - start;
     double time_copy_v = elapsed_seconds.count();
 	
-	float mx_diff = 0.0f;
 	for (int i = 0; i < size; i++)
 		mx_diff = std::max(mx_diff, std::abs(b[i] - b_v[i]));
 	
 	std::cout << "  COPY: " << 8.0 * size * NTIMES / time_copy / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << "COPY_V: " << 8.0 * size * NTIMES / time_copy_v / 1024.0 / 1024.0 << "MB/s" << std::endl;
+	std::cout << "COPY_V_OMP: " << 8.0 * size * NTIMES / time_copy_v_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
+	std::cout << "COPY_OMP: " << 8.0 * size * NTIMES / time_copy_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << "copy mx diff: " << mx_diff << std::endl;
 }
 
@@ -116,6 +223,28 @@ void test_fma(float* a, float* b, float* c, float* c_v, float d, int size) {
     std::chrono::duration<double> elapsed_seconds = end - start;
     double time_fma = elapsed_seconds.count();
 	
+	float mx_diff = 0.0f;
+	
+	start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < NTIMES; i++)
+        fma_v_omp(c_v, a, b, d, size);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end - start;
+    double time_fma_v_omp = elapsed_seconds.count();
+	
+	for (int i = 0; i < size; i++)
+		mx_diff = std::max(mx_diff, std::abs(c[i] - c_v[i]));
+	
+	start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < NTIMES; i++)
+        fma_omp(c_v, a, b, d, size);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end - start;
+    double time_fma_omp = elapsed_seconds.count();
+	
+	for (int i = 0; i < size; i++)
+		mx_diff = std::max(mx_diff, std::abs(c[i] - c_v[i]));
+	
 	start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NTIMES; i++)
         fma_v(c_v, a, b, d, size);
@@ -123,12 +252,13 @@ void test_fma(float* a, float* b, float* c, float* c_v, float d, int size) {
     elapsed_seconds = end - start;
     double time_fma_v = elapsed_seconds.count();
 	
-	float mx_diff = 0.0f;
 	for (int i = 0; i < size; i++)
 		mx_diff = std::max(mx_diff, std::abs(c[i] - c_v[i]));
 	
 	std::cout << "   FMA: " << 12.0 * size * NTIMES / time_fma / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << " FMA_V: " << 12.0 * size * NTIMES / time_fma_v / 1024.0 / 1024.0 << "MB/s" << std::endl;
+	std::cout << " FMA_V_OMP: " << 12.0 * size * NTIMES / time_fma_v_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
+	std::cout << " FMA_OMP: " << 12.0 * size * NTIMES / time_fma_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << " fma mx diff: " << mx_diff << std::endl;
 }
 
@@ -141,6 +271,28 @@ void test_norm2(float* c, int size) {
     std::chrono::duration<double> elapsed_seconds = end - start;
     double time_norm = elapsed_seconds.count();
 	
+	float mx_diff = 0.0f;
+	
+	float norm_v_omp;
+	start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < NTIMES; i++)
+        norm_v_omp = norm2_v_omp(c, size);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end - start;
+    double time_norm_v_omp = elapsed_seconds.count();
+	
+	mx_diff = std::max(mx_diff, std::abs(norm - norm_v_omp));
+	
+	float norm_omp;
+	start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < NTIMES; i++)
+        norm_omp = norm2_v_omp(c, size);
+    end = std::chrono::high_resolution_clock::now();
+    elapsed_seconds = end - start;
+    double time_norm_omp = elapsed_seconds.count();
+	
+	mx_diff = std::max(mx_diff, std::abs(norm - norm_omp));
+	
 	float norm_v;
 	start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NTIMES; i++)
@@ -149,11 +301,15 @@ void test_norm2(float* c, int size) {
     elapsed_seconds = end - start;
     double time_norm_v = elapsed_seconds.count();
 	
+	mx_diff = std::max(mx_diff, std::abs(norm - norm_v));
+	
 	std::cout << "  NORM: " << time_norm / NTIMES << "s" << std::endl;
 	std::cout << "NORM_V: " << time_norm_v / NTIMES << "s" << std::endl;
+	std::cout << "NORM_V_OMP: " << time_norm_v_omp / NTIMES << "s" << std::endl;
+	std::cout << "NORM_OMP: " << time_norm_omp / NTIMES << "s" << std::endl;
 	std::cout << "norm  : " << norm << std::endl;
 	std::cout << "norm_v: " << norm << std::endl;
-	std::cout << "norm diff: " << std::abs(norm - norm_v) << std::endl;
+	std::cout << "norm diff: " << mx_diff << std::endl;
 }
 
 void init_rand(float* arr, int size, unsigned int seed) {
@@ -165,9 +321,11 @@ void init_rand(float* arr, int size, unsigned int seed) {
 }
 
 int main(int argc, char* argv[]) {
+	std::cout << "NTIMES: " << NTIMES << std::endl;
+	std::cout << "V_SIZE: " << V_SIZE << std::endl;
 	int threads_num = omp_get_max_threads();
 	omp_set_num_threads(threads_num);
-	std::cout << "threads_num: " << threads_num << std::endl;
+	std::cout << "threads_num: " << threads_num << std::endl << std::endl;
 	
     int size_arr = V_SIZE;
     float* a = new float[size_arr];
@@ -179,10 +337,13 @@ int main(int argc, char* argv[]) {
 	
     init_rand(a, size_arr, 111);
 	test_copy(a, b, b_v, size_arr);
+	std::cout << std::endl;
 	
 	init_rand(a, size_arr, 222);
 	init_rand(b, size_arr, 555);
 	test_fma(a, b, c, c_v, d, size_arr);
+	std::cout << std::endl;
 	
 	test_norm2(c, size_arr);
+	std::cout << std::endl;
 }
