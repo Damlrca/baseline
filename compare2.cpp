@@ -10,7 +10,7 @@
 #include <omp.h>
 
 #define NTIMES 10000
-#define V_SIZE 1000009
+#define V_SIZE 250000
 
 void copy(float* dst, float* src, int size) {
     for (int i = 0; i < size; i++)
@@ -114,19 +114,13 @@ float norm2_v(float* mas, size_t size) {
 	float res = 0.0f;
 	size_t vl = vsetvlmax_e32m4();
 	vfloat32m4_t v_mas;
-	// vfloat32m4_t v_mul;
 	vfloat32m4_t v_summ = vfmv_v_f_f32m4(0.0f, vl);
 	while (size > vl) {
 		v_mas = vle_v_f32m4(mas, vl);
-		
-		// v_mul = vfmul_vv_f32m4(v_mas, v_mas, vl);
-		// v_summ = vfadd_vv_f32m4(v_summ, v_mul, vl);
 		v_summ = vfmacc_vv_f32m4(v_summ, v_mas, v_mas, vl);
-		
 		mas += vl;
 		size -= vl;
 	}
-	
 	vfloat32m1_t v_res = vfmv_v_f_f32m1(0.0f, vsetvlmax_e32m1());
 	v_res = vfredsum_vs_f32m4_f32m1(v_res, v_summ, v_res, vl);
 	
@@ -166,6 +160,11 @@ float norm2_omp(float* mas, size_t size) {
 		res = res + norm2(mas + offset, part_size);
 	}
 	return res;
+}
+
+void print_stat(const char* name, double this_time, double basic_time) {
+	std::cout << std::fixed; std::cout.precision(6);
+	std::cout << name << this_time << " " << basic_time / this_time << std::endl;
 }
 
 void test_copy(float* a, float* b, float* b_v, int size) {
@@ -208,11 +207,24 @@ void test_copy(float* a, float* b, float* b_v, int size) {
 	for (int i = 0; i < size; i++)
 		mx_diff = std::max(mx_diff, std::abs(b[i] - b_v[i]));
 	
+	std::cout << std::endl;
+	std::cout << "old-style-statistics" << std::endl;
 	std::cout << "  COPY: " << 8.0 * size * NTIMES / time_copy / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << "COPY_V: " << 8.0 * size * NTIMES / time_copy_v / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << "COPY_V_OMP: " << 8.0 * size * NTIMES / time_copy_v_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << "COPY_OMP: " << 8.0 * size * NTIMES / time_copy_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << "copy mx diff: " << mx_diff << std::endl;
+	
+	std::cout << std::endl;
+	std::cout << "statistic in ms, speedup" << std::endl;
+	double time_copy_ms = time_copy / NTIMES * 1000;
+	double time_copy_v_ms = time_copy_v / NTIMES * 1000;
+	double time_copy_v_omp_ms = time_copy_v_omp / NTIMES * 1000;
+	double time_copy_omp_ms = time_copy_omp / NTIMES * 1000;
+	print_stat("copy basic : ", time_copy_ms, time_copy_ms);
+	print_stat("copy v     : ", time_copy_v_ms, time_copy_ms);
+	print_stat("copy omp   : ", time_copy_omp_ms, time_copy_ms);
+	print_stat("copy v+omp : ", time_copy_v_omp_ms, time_copy_ms);
 }
 
 void test_fma(float* a, float* b, float* c, float* c_v, float d, int size) {
@@ -255,11 +267,24 @@ void test_fma(float* a, float* b, float* c, float* c_v, float d, int size) {
 	for (int i = 0; i < size; i++)
 		mx_diff = std::max(mx_diff, std::abs(c[i] - c_v[i]));
 	
+	std::cout << std::endl;
+	std::cout << "old-style-statistics" << std::endl;
 	std::cout << "   FMA: " << 12.0 * size * NTIMES / time_fma / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << " FMA_V: " << 12.0 * size * NTIMES / time_fma_v / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << " FMA_V_OMP: " << 12.0 * size * NTIMES / time_fma_v_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << " FMA_OMP: " << 12.0 * size * NTIMES / time_fma_omp / 1024.0 / 1024.0 << "MB/s" << std::endl;
 	std::cout << " fma mx diff: " << mx_diff << std::endl;
+	
+	std::cout << std::endl;
+	std::cout << "statistic in ms, speedup" << std::endl;
+	double time_fma_ms = time_fma / NTIMES * 1000;
+	double time_fma_v_ms = time_fma_v / NTIMES * 1000;
+	double time_fma_v_omp_ms = time_fma_v_omp / NTIMES * 1000;
+	double time_fma_omp_ms = time_fma_omp / NTIMES * 1000;
+	print_stat("fma basic  : ", time_fma_ms, time_fma_ms);
+	print_stat("fma v      : ", time_fma_v_ms, time_fma_ms);
+	print_stat("fma omp    : ", time_fma_omp_ms, time_fma_ms);
+	print_stat("fma v+omp  : ", time_fma_v_omp_ms, time_fma_ms);
 }
 
 void test_norm2(float* c, int size) {
@@ -303,6 +328,8 @@ void test_norm2(float* c, int size) {
 	
 	mx_diff = std::max(mx_diff, std::abs(norm - norm_v));
 	
+	std::cout << std::endl;
+	std::cout << "old-style-statistics" << std::endl;
 	std::cout << "  NORM: " << time_norm / NTIMES << "s" << std::endl;
 	std::cout << "NORM_V: " << time_norm_v / NTIMES << "s" << std::endl;
 	std::cout << "NORM_V_OMP: " << time_norm_v_omp / NTIMES << "s" << std::endl;
@@ -310,6 +337,17 @@ void test_norm2(float* c, int size) {
 	std::cout << "norm  : " << norm << std::endl;
 	std::cout << "norm_v: " << norm << std::endl;
 	std::cout << "norm diff: " << mx_diff << std::endl;
+	
+	std::cout << std::endl;
+	std::cout << "statistic in ms, speedup" << std::endl;
+	double time_norm_ms = time_norm / NTIMES * 1000;
+	double time_norm_v_ms = time_norm_v / NTIMES * 1000;
+	double time_norm_v_omp_ms = time_norm_v_omp / NTIMES * 1000;
+	double time_norm_omp_ms = time_norm_omp / NTIMES * 1000;
+	print_stat("norm basic : ", time_norm_ms, time_norm_ms);
+	print_stat("norm v     : ", time_norm_v_ms, time_norm_ms);
+	print_stat("norm omp   : ", time_norm_omp_ms, time_norm_ms);
+	print_stat("norm v+omp : ", time_norm_v_omp_ms, time_norm_ms);
 }
 
 void init_rand(float* arr, int size, unsigned int seed) {
