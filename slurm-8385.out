@@ -1,3 +1,4 @@
+node: lc4anode
 NTIMES: 10000
 V_SIZE: 1000009
 threads_num: 4
