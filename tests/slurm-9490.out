@@ -1,0 +1,50 @@
+node: lc4anode
+
+NTIMES: 200000
+V_SIZE: 250000
+threads_num: 4
+
+
+old-style-statistics
+  COPY: 6962.014582MB/s
+COPY_V: 9812.333062MB/s
+COPY_V_OMP: 12704.428863MB/s
+COPY_OMP: 12544.335714MB/s
+copy mx diff: 0.000000
+
+statistic in ms, speedup
+copy basic : 0.273965 1.000000
+copy v     : 0.194383 1.409410
+copy omp   : 0.152049 1.801826
+copy v+omp : 0.150133 1.824821
+
+
+old-style-statistics
+   FMA: 5441.938982MB/s
+ FMA_V: 5879.425079MB/s
+ FMA_V_OMP: 6237.524340MB/s
+ FMA_OMP: 5945.891275MB/s
+ fma mx diff: 0.000000
+
+statistic in ms, speedup
+fma basic  : 0.525736 1.000000
+fma v      : 0.486616 1.080392
+fma omp    : 0.481176 1.092605
+fma v+omp  : 0.458679 1.146195
+
+
+old-style-statistics
+  NORM: 0.000421s
+NORM_V: 0.000170s
+NORM_V_OMP: 0.000113s
+NORM_OMP: 0.000112s
+norm  : 5168434.500000
+norm_v: 5168434.500000
+norm mx_diff: 25.500000
+
+statistic in ms, speedup
+norm basic : 0.421314 1.000000
+norm v     : 0.170065 2.477373
+norm omp   : 0.112393 3.748582
+norm v+omp : 0.112817 3.734479
+

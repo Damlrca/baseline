@@ -1,0 +1,50 @@
+node: k1
+
+NTIMES: 200000
+V_SIZE: 100000
+threads_num: 4
+
+
+old-style-statistics
+  COPY: 3028.427659MB/s
+COPY_V: 7934.266533MB/s
+COPY_V_OMP: 10515.695128MB/s
+COPY_OMP: 10899.645318MB/s
+copy mx diff: 0.000000
+
+statistic in ms, speedup
+copy basic : 0.251926 1.000000
+copy v     : 0.096158 2.619929
+copy omp   : 0.069997 3.599110
+copy v+omp : 0.072552 3.472328
+
+
+old-style-statistics
+   FMA: 2594.919476MB/s
+ FMA_V: 5469.334309MB/s
+ FMA_V_OMP: 7515.139036MB/s
+ FMA_OMP: 8341.616801MB/s
+ fma mx diff: 0.000000
+
+statistic in ms, speedup
+fma basic  : 0.441019 1.000000
+fma v      : 0.209241 2.107709
+fma omp    : 0.137193 3.214596
+fma v+omp  : 0.152281 2.896097
+
+
+old-style-statistics
+  NORM: 0.000314s
+NORM_V: 0.000052s
+NORM_V_OMP: 0.000018s
+NORM_OMP: 0.000018s
+norm  : 2066667.625000
+norm_v: 2066667.625000
+norm mx_diff: 15.875000
+
+statistic in ms, speedup
+norm basic : 0.313890 1.000000
+norm v     : 0.052075 6.027647
+norm omp   : 0.017557 17.878129
+norm v+omp : 0.017539 17.896391
+
