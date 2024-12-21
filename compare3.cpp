@@ -1,4 +1,7 @@
-// riscv64-unknown-linux-gnu-g++ -O2 -march=rv64gcv compare3.cpp -o compare3 -fopenmp -DV_SIZE=100000 -DNTIMES=10000 -DTHREADNUM=4
+// module load gcc-riscv64-14.2.0
+// riscv64-unknown-linux-gnu-g++ -O2 -march=rv64gcv compare3.cpp -o compare3_50k -fopenmp -DV_SIZE=50000 -DNTIMES=10000 -DTHREADNUM=8
+// riscv64-unknown-linux-gnu-g++ -O2 -march=rv64gcv compare3.cpp -o compare3_100k -fopenmp -DV_SIZE=100000 -DNTIMES=10000 -DTHREADNUM=8
+// riscv64-unknown-linux-gnu-g++ -O2 -march=rv64gcv compare3.cpp -o compare3_250k -fopenmp -DV_SIZE=250000 -DNTIMES=10000 -DTHREADNUM=8
 
 #include <chrono>
 #include <iostream>
@@ -29,12 +32,12 @@ void copy(float* dst, float* src, int size) {
 }
 
 void copy_v(float* dst, float* src, int size) {
-	size_t vl = vsetvlmax_e32m4();
+	size_t vl = __riscv_vsetvlmax_e32m4();
 	vfloat32m4_t v_src;
 	while (size > 0) {
-		vl = vsetvl_e32m4(size);
-		v_src = vle32_v_f32m4(src, vl);
-		vse32_v_f32m4(dst, v_src, vl);
+		vl = __riscv_vsetvl_e32m4(size);
+		v_src = __riscv_vle32_v_f32m4(src, vl);
+		__riscv_vse32_v_f32m4(dst, v_src, vl);
 		dst += vl;
 		src += vl;
 		size -= vl;
@@ -77,14 +80,14 @@ void fma(float* res, float* a, float* b, float scalar, int size) {
 }
 
 void fma_v(float* res, float* a, float* b, float scalar, int size) {
-	size_t vl = vsetvlmax_e32m4();
+	size_t vl = __riscv_vsetvlmax_e32m4();
 	vfloat32m4_t v_a, v_b, v_res;
 	while (size > 0) {
-		vl = vsetvl_e32m4(size);
-		v_a = vle32_v_f32m4(a, vl);
-		v_b = vle32_v_f32m4(b, vl);
-		v_res = vfmacc_vf_f32m4(v_a, scalar, v_b, vl);
-		vse32_v_f32m4(res, v_res, vl);
+		vl = __riscv_vsetvl_e32m4(size);
+		v_a = __riscv_vle32_v_f32m4(a, vl);
+		v_b = __riscv_vle32_v_f32m4(b, vl);
+		v_res = __riscv_vfmacc_vf_f32m4(v_a, scalar, v_b, vl);
+		__riscv_vse32_v_f32m4(res, v_res, vl);
 		a += vl;
 		b += vl;
 		res += vl;
@@ -131,23 +134,23 @@ float norm2(float* mas, size_t size) {
 
 float norm2_v(float* mas, size_t size) {
 	float res = 0.0f;
-	size_t vl = vsetvlmax_e32m4();
+	size_t vl = __riscv_vsetvlmax_e32m4();
 	vfloat32m4_t v_mas;
-	vfloat32m4_t v_summ = vfmv_v_f_f32m4(0.0f, vl);
+	vfloat32m4_t v_summ = __riscv_vfmv_v_f_f32m4(0.0f, vl);
 	while (size > vl) {
-		v_mas = vle32_v_f32m4(mas, vl);
-		v_summ = vfmacc_vv_f32m4(v_summ, v_mas, v_mas, vl);
+		v_mas = __riscv_vle32_v_f32m4(mas, vl);
+		v_summ = __riscv_vfmacc_vv_f32m4(v_summ, v_mas, v_mas, vl);
 		mas += vl;
 		size -= vl;
 	}
-	vfloat32m1_t v_res = vfmv_v_f_f32m1(0.0f, vsetvlmax_e32m1());
-	v_res = vfredosum_vs_f32m4_f32m1(v_res, v_summ, v_res, vl);
+	vfloat32m1_t v_res = __riscv_vfmv_v_f_f32m1(0.0f, __riscv_vsetvlmax_e32m1());
+	v_res = __riscv_vfredosum_vs_f32m4_f32m1(v_summ, v_res, vl);
 	
-	vl = vsetvl_e32m4(size);
-	v_mas = vle32_v_f32m4(mas, vl);
-	v_mas = vfmul_vv_f32m4(v_mas, v_mas, vl);
-	v_res = vfredosum_vs_f32m4_f32m1(v_res, v_mas, v_res, vl);
-	vse32_v_f32m1(&res, v_res, 1);
+	vl = __riscv_vsetvl_e32m4(size);
+	v_mas = __riscv_vle32_v_f32m4(mas, vl);
+	v_mas = __riscv_vfmul_vv_f32m4(v_mas, v_mas, vl);
+	v_res = __riscv_vfredosum_vs_f32m4_f32m1(v_mas, v_res, vl);
+	__riscv_vse32_v_f32m1(&res, v_res, 1);
 	return res;
 }
 

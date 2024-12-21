@@ -1,0 +1,48 @@
+NTIMES: 10000
+V_SIZE: 50000
+threads_num: 8
+
+
+old-style-statistics
+  COPY: 3003.620956MB/s
+COPY_V: 9283.690939MB/s
+COPY_V_OMP: 26299.537710MB/s
+COPY_OMP: 16301.604182MB/s
+copy mx diff: 0.000000
+
+statistic in ms, speedup
+copy basic : 0.127003 1.000000
+copy v     : 0.041090 3.090833
+copy omp   : 0.023401 5.427317
+copy v+omp : 0.014505 8.755944
+
+
+old-style-statistics
+   FMA: 2592.402866MB/s
+ FMA_V: 6343.293718MB/s
+ FMA_V_OMP: 9866.920602MB/s
+ FMA_OMP: 9209.958591MB/s
+ fma mx diff: 0.000000
+
+statistic in ms, speedup
+fma basic  : 0.220724 1.000000
+fma v      : 0.090206 2.446878
+fma omp    : 0.062129 3.552673
+fma v+omp  : 0.057992 3.806091
+
+
+old-style-statistics
+  NORM: 0.000125s
+NORM_V: 0.000023s
+NORM_V_OMP: 0.000007s
+NORM_OMP: 0.000007s
+norm  : 1032195.750000
+norm_v: 1032195.750000
+norm mx_diff: 1.750000
+
+statistic in ms, speedup
+norm basic : 0.125297 1.000000
+norm v     : 0.022886 5.474721
+norm omp   : 0.007039 17.800394
+norm v+omp : 0.006902 18.154291
+
